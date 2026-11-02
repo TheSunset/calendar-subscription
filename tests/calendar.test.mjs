@@ -40,23 +40,44 @@ test("日历和事件包含必需属性", async () => {
   const text = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
   assert.ok(text.startsWith("BEGIN:VCALENDAR\r\n"));
   assert.ok(text.trimEnd().endsWith("END:VCALENDAR"));
-  const eventCount = text.match(/BEGIN:VEVENT/g)?.length ?? 0;
-  assert.ok(eventCount > 0);
-  for (const propertyName of ["UID:", "DTSTAMP:", "DTSTART;VALUE=DATE:", "DTEND;VALUE=DATE:"]) {
-    assert.equal(text.split(propertyName).length - 1, eventCount, propertyName);
+  const events = text.split("BEGIN:VEVENT\r\n").slice(1).map((part) => part.split("END:VEVENT")[0]);
+  assert.equal(events.length, 72);
+  for (const event of events) {
+    for (const propertyName of ["UID:", "DTSTAMP:", "DTSTART", "DTEND", "CREATED:", "SUMMARY:"]) {
+      assert.ok(event.includes(propertyName), propertyName);
+    }
   }
 });
 
 test("仅假期版本不包含调休上班事件", async () => {
   const complete = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
   const holidaysOnly = await readFile(join(PUBLIC_DIR, "china-holidays-only.ics"), "utf8");
-  assert.ok(complete.includes("班 ·"));
-  assert.equal(holidaysOnly.includes("班 ·"), false);
+  assert.ok(complete.includes("补班 第"));
+  assert.equal(holidaysOnly.includes("补班 第"), false);
+  assert.equal(holidaysOnly.match(/BEGIN:VEVENT/g)?.length, 61);
 });
 
 test("2026 年春节日期正确", async () => {
   const text = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
   assert.ok(text.includes("DTSTART;VALUE=DATE:20260215"));
   assert.ok(text.includes("DTEND;VALUE=DATE:20260224"));
-  assert.ok(text.includes("DTSTART;VALUE=DATE:20260214"));
+  assert.ok(text.includes("DTSTART:20260214T090000"));
+  assert.ok(text.includes("SUMMARY:春节 假期 第9天/共9天"));
+});
+
+test("包含上海时区和补班提醒", async () => {
+  const text = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
+  assert.ok(text.includes("X-WR-TIMEZONE:Asia/Shanghai"));
+  assert.ok(text.includes("BEGIN:VTIMEZONE"));
+  assert.ok(text.includes("TRIGGER:-PT60M"));
+  assert.ok(text.includes("STATUS:TENTATIVE"));
+  assert.ok(text.includes("TRANSP:OPAQUE"));
+  assert.ok(text.includes("放假通知: https://www.gov.cn/"));
+});
+
+test("所有生成事件的 UID 唯一", async () => {
+  const text = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
+  const uids = [...text.matchAll(/^UID:([^\r]+)/gm)].map((match) => match[1]);
+  assert.equal(uids.length, 72);
+  assert.equal(new Set(uids).size, uids.length);
 });

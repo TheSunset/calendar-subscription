@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA_DIR = join(ROOT, "data");
 const OUTPUT_DIR = join(ROOT, "public");
-const UID_DOMAIN = "china-holidays.github.io";
+const UID_DOMAIN = "thesunset.github.io";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export function parseDate(value) {
@@ -102,6 +102,9 @@ export function validateData(documents) {
     const offDates = new Set();
     const workdays = new Set();
     for (const holiday of document.holidays) {
+      if (typeof holiday.notice !== "string" || holiday.notice.trim() === "") {
+        throw new Error(`${year}/${holiday.id} 缺少国务院通知原文`);
+      }
       if (holidayIds.has(holiday.id)) {
         throw new Error(`${year} 年节日 ID 重复：${holiday.id}`);
       }
@@ -146,88 +149,117 @@ export function validateData(documents) {
   }
 }
 
-function eventLines({
-  uid,
-  start,
-  end,
-  summary,
-  description,
-  source,
-  timestamp,
-  category,
-  sequence,
-}) {
+function dateRange(start, end) {
+  const days = [];
+  for (let current = start; current <= end; current = addDays(current, 1)) {
+    days.push(current);
+  }
+  return days;
+}
+
+function holidayEventLines({ day, index, total, holiday, source, timestamp, sequence }) {
+  const summary = `${holiday.name} 假期 第${index}天/共${total}天`;
   return [
     "BEGIN:VEVENT",
-    `UID:${uid}`,
-    `DTSTAMP:${timestamp}`,
+    `DTSTART;VALUE=DATE:${icalDate(day)}`,
+    `DTEND;VALUE=DATE:${icalDate(addDays(day, 1))}`,
+    `DTSTAMP:${icalDate(day)}T000000Z`,
+    `UID:${icalDate(day)}T000001_holiday${index}@${UID_DOMAIN}`,
+    `CREATED:${timestamp}`,
+    `DESCRIPTION:${escapeText(`${holiday.notice}\n\n放假通知: ${source}`)}`,
     `LAST-MODIFIED:${timestamp}`,
     `SEQUENCE:${sequence}`,
-    `DTSTART;VALUE=DATE:${icalDate(start)}`,
-    `DTEND;VALUE=DATE:${icalDate(addDays(end, 1))}`,
-    `SUMMARY:${escapeText(summary)}`,
-    `DESCRIPTION:${escapeText(description)}`,
-    `URL;VALUE=URI:${source}`,
-    `CATEGORIES:${escapeText(category)}`,
-    "TRANSP:TRANSPARENT",
     "STATUS:CONFIRMED",
+    `SUMMARY:${escapeText(summary)}`,
+    "TRANSP:TRANSPARENT",
+    "END:VEVENT",
+  ];
+}
+
+function workdayEventLines({ day, index, total, holiday, source, timestamp, sequence }) {
+  const date = icalDate(day);
+  const summary = `${holiday.name} 补班 第${index}天/共${total}天`;
+  return [
+    "BEGIN:VEVENT",
+    `DTSTART:${date}T090000`,
+    `DTEND:${date}T180000`,
+    `DTSTAMP:${date}T000000Z`,
+    `UID:${date}T000001_compensateday${index}@${UID_DOMAIN}`,
+    `CREATED:${timestamp}`,
+    `DESCRIPTION:${escapeText(`${holiday.notice}\n\n放假通知: ${source}`)}`,
+    `LAST-MODIFIED:${timestamp}`,
+    `SEQUENCE:${sequence}`,
+    "STATUS:TENTATIVE",
+    `SUMMARY:${escapeText(summary)}`,
+    "TRANSP:OPAQUE",
+    "BEGIN:VALARM",
+    "TRIGGER:-PT60M",
+    "ACTION:DISPLAY",
+    `DESCRIPTION:${escapeText(`补班提醒：${summary}`)}`,
+    "END:VALARM",
     "END:VEVENT",
   ];
 }
 
 export function calendarLines(documents, includeWorkdays) {
-  const title = includeWorkdays ? "中国节假日（含调休）" : "中国节假日";
+  const title = includeWorkdays ? "中国节假日" : "中国节假日（仅假期）";
+  const firstYear = Math.min(...documents.map((document) => document.year));
+  const lastYear = Math.max(...documents.map((document) => document.year));
+  const updatedAt = documents
+    .map((document) => document.updated_at)
+    .sort()
+    .at(-1);
+  const scope = includeWorkdays ? "放假、调休和补班" : "放假";
   const lines = [
     "BEGIN:VCALENDAR",
+    "PRODID:-//TheSunset//China Public Holidays 1.0//CN",
     "VERSION:2.0",
-    "PRODID:-//SunsetZone//China Holidays Calendar//ZH-CN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `NAME:${escapeText(title)}`,
     `X-WR-CALNAME:${escapeText(title)}`,
-    "DESCRIPTION:国务院办公厅发布的中国法定节假日安排",
-    "X-WR-CALDESC:国务院办公厅发布的中国法定节假日安排",
-    "REFRESH-INTERVAL;VALUE=DURATION:P1D",
-    "X-PUBLISHED-TTL:P1D",
-    "COLOR:Crimson",
+    "X-WR-TIMEZONE:Asia/Shanghai",
+    `X-WR-CALDESC:${firstYear}~${lastYear}年中国${scope}日历 更新时间${updatedAt}`,
+    "BEGIN:VTIMEZONE",
+    "TZID:Asia/Shanghai",
+    "X-LIC-LOCATION:Asia/Shanghai",
+    "BEGIN:STANDARD",
+    "TZOFFSETFROM:+0800",
+    "TZOFFSETTO:+0800",
+    "TZNAME:CST",
+    "DTSTART:19700101T000000",
+    "END:STANDARD",
+    "END:VTIMEZONE",
   ];
 
   for (const document of documents) {
     const timestamp = icalTimestamp(document.updated_at);
-    const description = `依据${document.document}，来源：中国政府网`;
     for (const holiday of document.holidays) {
-      holiday.off.forEach((period, index) => {
-        lines.push(
-          ...eventLines({
-            uid: `${document.year}-${holiday.id}-off-${index}@${UID_DOMAIN}`,
-            start: parseDate(period[0]),
-            end: parseDate(period[1]),
-            summary: `休 · ${holiday.name}`,
-            description,
-            source: document.source,
-            timestamp,
-            category: "节假日",
-            sequence: document.revision,
-          }),
-        );
+      const daysOff = holiday.off.flatMap(([start, end]) =>
+        dateRange(parseDate(start), parseDate(end)),
+      );
+      daysOff.forEach((day, index) => {
+        lines.push(...holidayEventLines({
+          day,
+          index: index + 1,
+          total: daysOff.length,
+          holiday,
+          source: document.source,
+          timestamp,
+          sequence: document.revision,
+        }));
       });
       if (includeWorkdays) {
-        for (const workday of holiday.workdays) {
-          const day = parseDate(workday);
-          lines.push(
-            ...eventLines({
-              uid: `${document.year}-${holiday.id}-work-${workday.replaceAll("-", "")}@${UID_DOMAIN}`,
-              start: day,
-              end: day,
-              summary: `班 · ${holiday.name}调休`,
-              description,
-              source: document.source,
-              timestamp,
-              category: "调休上班",
-              sequence: document.revision,
-            }),
-          );
-        }
+        holiday.workdays.forEach((workday, index) => {
+          lines.push(...workdayEventLines({
+            day: parseDate(workday),
+            index: index + 1,
+            total: holiday.workdays.length,
+            holiday,
+            source: document.source,
+            timestamp,
+            sequence: document.revision,
+          }));
+        });
       }
     }
   }

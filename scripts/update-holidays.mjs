@@ -109,7 +109,7 @@ function countInclusiveDays(start, end) {
   return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1;
 }
 
-function parseHolidaySection(name, content, year) {
+function parseHolidaySection(ordinal, name, content, year) {
   const rangePattern = /(\d{1,2})月(\d{1,2})日(?:（[^）]*）)?(?:至(?:(\d{1,2})月)?(\d{1,2})日(?:（[^）]*）)?)?放假/;
   const range = content.match(rangePattern);
   if (!range) throw new Error(`${name}段落中没有找到放假日期`);
@@ -138,7 +138,13 @@ function parseHolidaySection(name, content, year) {
 
   const id = HOLIDAY_IDS.get(name);
   if (!id) throw new Error(`无法识别节日名称：${name}`);
-  return { id, name, off, workdays: [...new Set(workdays)] };
+  return {
+    id,
+    name,
+    notice: `${ordinal}、${name}：${content.trim()}`,
+    off,
+    workdays: [...new Set(workdays)],
+  };
 }
 
 function extractMeta(html, name) {
@@ -160,9 +166,9 @@ export function parseOfficialNotice(html, candidate, year) {
   if (!content.includes("经国务院批准")) throw new Error("正文缺少“经国务院批准”标识");
 
   const sections = [];
-  const sectionPattern = /(?:^|\n)[一二三四五六七]、([^：:\n]+)[：:]([\s\S]*?)(?=\n[一二三四五六七]、|\n(?:鼓励|节假日期间|国务院办公厅)|$)/g;
+  const sectionPattern = /(?:^|\n)([一二三四五六七])、([^：:\n]+)[：:]([\s\S]*?)(?=\n[一二三四五六七]、|\n(?:鼓励|节假日期间|国务院办公厅)|$)/g;
   for (const match of content.matchAll(sectionPattern)) {
-    sections.push(parseHolidaySection(match[1].replace(/\s+/g, ""), match[2], year));
+    sections.push(parseHolidaySection(match[1], match[2].replace(/\s+/g, ""), match[3], year));
   }
   if (sections.length < 6 || sections.length > 7) {
     throw new Error(`应解析出 6 或 7 个节日段落，实际为 ${sections.length}`);
