@@ -79,7 +79,7 @@ jobs:
           if [ -z "$pr_number" ]; then
             gh pr create \
               --draft \
-              --base main \
+              --base master \
               --head "$branch" \
               --title "添加 $YEAR 年中国节假日安排" \
               --body "数据由自动化程序从国务院办公厅正式通知解析。合并前请人工逐项核对。\n\n官方来源：$SOURCE\n\n自动校验和 ICS 测试已通过。"

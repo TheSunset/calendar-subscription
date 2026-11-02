@@ -64,28 +64,28 @@ cd /Users/yingzheng/SunsetZone/develop/calendar-subscription
 
 npm run build
 
-git init -b main
+git init -b master
 git add .
 git status
 git commit -m "Initial China holidays calendar subscription"
 
 git remote add origin https://github.com/<你的用户名>/calendar-subscription.git
 git remote -v
-git push -u origin main
+git push -u origin master
 ```
 
-如果本机 Git 版本不支持 `git init -b main`，改用：
+如果本机 Git 版本不支持 `git init -b master`，改用：
 
 ```bash
 git init
-git branch -M main
+git branch -M master
 ```
 
 如果 `git push` 要求认证，GitHub 不能再使用账号密码进行 Git 认证。可以安装 [GitHub CLI](https://cli.github.com/) 后执行：
 
 ```bash
 gh auth login
-git push -u origin main
+git push -u origin master
 ```
 
 也可以使用已经配置好的 SSH 地址：
@@ -171,7 +171,7 @@ https://<你的用户名>.github.io/calendar-subscription/china-holidays-only.ic
 
 ## 自动发现下一年度安排
 
-`Check next-year holidays` 工作流会在每年 9 月至次年 1 月，每天北京时间 09:23 查询国务院政策文件库。定时任务只从默认分支 `main` 运行，实际执行时间可能因 GitHub Actions 负载稍有延迟。
+`Check next-year holidays` 工作流会在每年 9 月至次年 1 月，每天北京时间 09:23 查询国务院政策文件库。定时任务只从默认分支 `master` 运行，实际执行时间可能因 GitHub Actions 负载稍有延迟。
 
 目标年份按照 `data/` 中最新年份加一计算。例如目前最新文件是 `data/2026.json`，工作流就会查找 2027 年正式通知。
 
@@ -230,7 +230,7 @@ node scripts/update-holidays.mjs --year 2026 --force --dry-run
 3. 逐项核对每个假期的开始日期、结束日期和调休上班日期。
 4. 确认 PR 的自动测试全部通过。
 5. 点击 **Ready for review**，再点击 **Merge pull request**。
-6. 合并到 `main` 后，`Build and deploy calendar` 会自动重新发布 GitHub Pages。
+6. 合并到 `master` 后，`Build and deploy calendar` 会自动重新发布 GitHub Pages。
 
 原有 ICS 订阅地址不会改变。iPhone 日历后续刷新时会获取新年度事件。
 
