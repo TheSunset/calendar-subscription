@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="基于国务院办公厅通知维护的中国法定节假日日历订阅。">
+  <title>中国节假日日历订阅</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #251b18;
+      --muted: #72615b;
+      --red: #b4232c;
+      --red-dark: #861820;
+      --paper: #fffaf1;
+      --line: rgba(82, 52, 43, .14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", serif;
+      background:
+        radial-gradient(circle at 20% 0, rgba(204, 47, 54, .10), transparent 32rem),
+        linear-gradient(150deg, #f7ecda, var(--paper) 45%, #f4e5d2);
+    }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 72px 0 40px; }
+    .eyebrow { color: var(--red); font: 700 13px/1.4 ui-sans-serif, system-ui; letter-spacing: .16em; }
+    h1 { margin: 14px 0 18px; font-size: clamp(42px, 8vw, 76px); line-height: 1.03; letter-spacing: -.045em; }
+    .lead { max-width: 660px; margin: 0; color: var(--muted); font-size: 19px; line-height: 1.8; }
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 48px 0 28px; }
+    .card { padding: 28px; border: 1px solid var(--line); border-radius: 22px; background: rgba(255, 255, 255, .65); box-shadow: 0 18px 55px rgba(65, 35, 24, .08); backdrop-filter: blur(10px); }
+    .card h2 { margin: 0 0 10px; font-size: 25px; }
+    .card p { min-height: 55px; margin: 0 0 24px; color: var(--muted); line-height: 1.65; }
+    .button { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; padding: 12px 18px; border-radius: 13px; color: white; background: var(--red); text-decoration: none; font: 700 16px/1 ui-sans-serif, system-ui; transition: transform .15s ease, background .15s ease; }
+    .button:hover { background: var(--red-dark); transform: translateY(-1px); }
+    .button.secondary { color: var(--red-dark); background: #f7e1de; }
+    .copy { margin-top: 10px; border: 0; cursor: pointer; }
+    .note { padding: 22px 24px; border-left: 3px solid var(--red); background: rgba(255,255,255,.4); color: var(--muted); line-height: 1.75; }
+    .steps { margin: 34px 0; padding-top: 28px; border-top: 1px solid var(--line); }
+    .steps h2 { font-size: 22px; }
+    ol { padding-left: 1.4em; color: var(--muted); line-height: 2; }
+    footer { margin-top: 48px; color: var(--muted); font: 13px/1.7 ui-sans-serif, system-ui; }
+    footer a { color: inherit; }
+    @media (max-width: 680px) {
+      main { padding-top: 42px; }
+      .cards { grid-template-columns: 1fr; margin-top: 34px; }
+      .card p { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">CHINA HOLIDAYS · ICS</div>
+    <h1>中国节假日<br>日历订阅</h1>
+    <p class="lead">把国务院办公厅公布的法定节假日与调休安排，添加到 iPhone、Mac 或其他支持 iCalendar 的日历中。</p>
+
+    <section class="cards" aria-label="订阅选项">
+      <article class="card">
+        <h2>完整版</h2>
+        <p>包含放假日期和周末调休上班日期，适合日常工作安排。</p>
+        <a class="button subscribe" data-feed="china-holidays.ics" href="china-holidays.ics">订阅：假期 + 调休</a>
+        <button class="button secondary copy" data-feed="china-holidays.ics">复制订阅地址</button>
+      </article>
+      <article class="card">
+        <h2>仅放假</h2>
+        <p>只显示连续假期，不显示调休上班日期。</p>
+        <a class="button subscribe" data-feed="china-holidays-only.ics" href="china-holidays-only.ics">订阅：仅假期</a>
+        <button class="button secondary copy" data-feed="china-holidays-only.ics">复制订阅地址</button>
+      </article>
+    </section>
+
+    <div class="note">日历内容仅依据国务院办公厅正式通知整理。下一年度安排公布后，订阅地址保持不变，日历会在客户端刷新后自动更新。</div>
+
+    <section class="steps">
+      <h2>在 iPhone 上手动添加</h2>
+      <ol>
+        <li>复制上方订阅地址。</li>
+        <li>打开“日历”，依次选择“日历”→“添加日历”→“添加订阅日历”。</li>
+        <li>粘贴地址并确认订阅。</li>
+      </ol>
+    </section>
+
+    <footer>
+      非政府官方网站。数据来源见每个日历事件的说明和链接。<br>
+      采用开放源码维护，可在 GitHub 仓库提交勘误。
+    </footer>
+  </main>
+  <script>
+    const feedUrl = (name) => new URL(name, document.baseURI).href;
+    document.querySelectorAll('.subscribe').forEach((link) => {
+      const httpsUrl = feedUrl(link.dataset.feed);
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        link.href = httpsUrl.replace(/^https:/, 'webcal:');
+      } else {
+        link.href = httpsUrl;
+      }
+    });
+    document.querySelectorAll('.copy').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const original = button.textContent;
+        try {
+          await navigator.clipboard.writeText(feedUrl(button.dataset.feed));
+          button.textContent = '已复制';
+        } catch {
+          window.prompt('复制这个订阅地址：', feedUrl(button.dataset.feed));
+        }
+        window.setTimeout(() => { button.textContent = original; }, 1600);
+      });
+    });
+  </script>
+</body>
+</html>

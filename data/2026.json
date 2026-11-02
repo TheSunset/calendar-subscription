@@ -1,0 +1,52 @@
+{
+  "year": 2026,
+  "document": "国办发明电〔2025〕7号",
+  "published_at": "2025-11-04",
+  "updated_at": "2025-11-04",
+  "revision": 0,
+  "source": "https://www.gov.cn/gongbao/2025/issue_12406/material/gwygb202532.pdf",
+  "holidays": [
+    {
+      "id": "new-year",
+      "name": "元旦",
+      "off": [["2026-01-01", "2026-01-03"]],
+      "workdays": ["2026-01-04"]
+    },
+    {
+      "id": "spring-festival",
+      "name": "春节",
+      "off": [["2026-02-15", "2026-02-23"]],
+      "workdays": ["2026-02-14", "2026-02-28"]
+    },
+    {
+      "id": "qingming",
+      "name": "清明节",
+      "off": [["2026-04-04", "2026-04-06"]],
+      "workdays": []
+    },
+    {
+      "id": "labour-day",
+      "name": "劳动节",
+      "off": [["2026-05-01", "2026-05-05"]],
+      "workdays": ["2026-05-09"]
+    },
+    {
+      "id": "dragon-boat",
+      "name": "端午节",
+      "off": [["2026-06-19", "2026-06-21"]],
+      "workdays": []
+    },
+    {
+      "id": "mid-autumn",
+      "name": "中秋节",
+      "off": [["2026-09-25", "2026-09-27"]],
+      "workdays": []
+    },
+    {
+      "id": "national-day",
+      "name": "国庆节",
+      "off": [["2026-10-01", "2026-10-07"]],
+      "workdays": ["2026-09-20", "2026-10-10"]
+    }
+  ]
+}

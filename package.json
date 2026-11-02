@@ -1,0 +1,19 @@
+{
+  "name": "china-holidays-calendar",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "中国法定节假日 iCalendar 订阅",
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "check": "node scripts/generate.mjs --check",
+    "update": "node scripts/update-holidays.mjs",
+    "test": "node --test",
+    "build": "npm run generate && npm test",
+    "dev": "node scripts/serve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

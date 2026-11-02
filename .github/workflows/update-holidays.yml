@@ -1,0 +1,86 @@
+name: Check next-year holidays
+
+on:
+  schedule:
+    # 北京时间每天 09:23，在通知最可能发布的 9 月至次年 1 月运行。
+    - cron: "23 1 * 1,9-12 *"
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "目标年份；留空时使用 data 中最新年份加一"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: holiday-data-update
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Search and parse official notice
+        id: update
+        continue-on-error: true
+        env:
+          TARGET_YEAR: ${{ inputs.year }}
+        run: |
+          set -o pipefail
+          if [ -n "$TARGET_YEAR" ]; then
+            node scripts/update-holidays.mjs --year "$TARGET_YEAR" 2>&1 | tee update.log
+          else
+            node scripts/update-holidays.mjs 2>&1 | tee update.log
+          fi
+      - name: Report parser or network failure
+        if: steps.update.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="节假日自动更新失败"
+          issue_number="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')"
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --body-file update.log
+          else
+            gh issue create --title "$title" --body-file update.log
+          fi
+          exit 1
+      - name: Build and test candidate
+        if: steps.update.outputs.found == 'true'
+        run: npm run build
+      - name: Create or update draft pull request
+        if: steps.update.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          YEAR: ${{ steps.update.outputs.year }}
+          SOURCE: ${{ steps.update.outputs.source }}
+        run: |
+          branch="automation/holidays-$YEAR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add "data/$YEAR.json" public/*.ics
+          git commit -m "Add $YEAR China holiday schedule"
+          git push --force-with-lease --set-upstream origin "$branch"
+
+          pr_number="$(gh pr list --state open --head "$branch" --json number --jq '.[0].number')"
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --draft \
+              --base main \
+              --head "$branch" \
+              --title "添加 $YEAR 年中国节假日安排" \
+              --body "数据由自动化程序从国务院办公厅正式通知解析。合并前请人工逐项核对。\n\n官方来源：$SOURCE\n\n自动校验和 ICS 测试已通过。"
+          fi
