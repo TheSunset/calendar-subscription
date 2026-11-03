@@ -1,9 +1,7 @@
 name: Test scheduled Node.js script
 
 on:
-  schedule:
-    # GitHub Actions 支持的最短间隔是 5 分钟；从第 2 分钟开始以避开整点高峰。
-    - cron: "2/5 * * * *"
+  # 该工作流会写入测试分支并创建 PR，因此只保留手动触发。
   workflow_dispatch:
 
 permissions:
