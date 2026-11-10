@@ -14,6 +14,22 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PUBLIC_DIR = join(ROOT, "public");
 let documents;
 
+function countDays([start, end]) {
+  return Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1;
+}
+
+function expectedEventCounts() {
+  let holidays = 0;
+  let workdays = 0;
+  for (const document of documents) {
+    for (const holiday of document.holidays) {
+      holidays += holiday.off.reduce((total, period) => total + countDays(period), 0);
+      workdays += holiday.workdays.length;
+    }
+  }
+  return { holidays, complete: holidays + workdays };
+}
+
 before(async () => {
   documents = await loadData();
   validateData(documents);
@@ -21,7 +37,9 @@ before(async () => {
 });
 
 test("年度数据完整", () => {
-  assert.deepEqual(documents.map((item) => item.year), [2025, 2026]);
+  const years = documents.map((item) => item.year);
+  const expectedYears = Array.from({ length: years.length }, (_, index) => 2025 + index);
+  assert.deepEqual(years, expectedYears);
 });
 
 test("生成文件使用 CRLF，且物理行不超过 75 字节", async () => {
@@ -41,7 +59,7 @@ test("日历和事件包含必需属性", async () => {
   assert.ok(text.startsWith("BEGIN:VCALENDAR\r\n"));
   assert.ok(text.trimEnd().endsWith("END:VCALENDAR"));
   const events = text.split("BEGIN:VEVENT\r\n").slice(1).map((part) => part.split("END:VEVENT")[0]);
-  assert.equal(events.length, 72);
+  assert.equal(events.length, expectedEventCounts().complete);
   for (const event of events) {
     for (const propertyName of ["UID:", "DTSTAMP:", "DTSTART", "DTEND", "CREATED:", "SUMMARY:"]) {
       assert.ok(event.includes(propertyName), propertyName);
@@ -54,7 +72,7 @@ test("仅假期版本不包含调休上班事件", async () => {
   const holidaysOnly = await readFile(join(PUBLIC_DIR, "china-holidays-only.ics"), "utf8");
   assert.ok(complete.includes("补班 第"));
   assert.equal(holidaysOnly.includes("补班 第"), false);
-  assert.equal(holidaysOnly.match(/BEGIN:VEVENT/g)?.length, 61);
+  assert.equal(holidaysOnly.match(/BEGIN:VEVENT/g)?.length, expectedEventCounts().holidays);
 });
 
 test("2026 年春节日期正确", async () => {
@@ -78,6 +96,6 @@ test("包含上海时区和补班提醒", async () => {
 test("所有生成事件的 UID 唯一", async () => {
   const text = await readFile(join(PUBLIC_DIR, "china-holidays.ics"), "utf8");
   const uids = [...text.matchAll(/^UID:([^\r]+)/gm)].map((match) => match[1]);
-  assert.equal(uids.length, 72);
+  assert.equal(uids.length, expectedEventCounts().complete);
   assert.equal(new Set(uids).size, uids.length);
 });
